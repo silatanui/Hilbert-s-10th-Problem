@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hilbert's 10th: The Integer Hunt</title>
+    
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Math.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a; /* Slate 900 - Solid, no fancy gradients */
+            color: #f8fafc;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; 
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
+        }
+
+        /* Simplified Panel - No blur, solid background */
+        .simple-panel {
+            background: #1e293b; /* Slate 800 */
+            border: 1px solid #334155;
+        }
+
+        .input-simple {
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: white;
+            transition: all 0.2s;
+        }
+        .input-simple:focus {
+            border-color: #818cf8; /* Indigo 400 */
+            outline: none;
+        }
+
+        .card-active {
+            background-color: #312e81; /* Indigo 900 */
+            border-left: 4px solid #6366f1;
+        }
+        
+        .card-inactive {
+            border-left: 4px solid transparent;
+            background-color: #1e293b;
+        }
+        .card-inactive:hover {
+            background-color: #334155;
+        }
+
+        .equation-text {
+            font-variant-numeric: tabular-nums;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden bg-slate-900 text-slate-100">
+
+    <!-- Header -->
+    <header class="simple-panel border-x-0 border-t-0 p-4 flex justify-between items-center z-20 shadow-sm flex-shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="bg-indigo-500/20 p-2 rounded-lg">
+                <i class="ph-duotone ph-function text-2xl text-indigo-400"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-tight text-white leading-none">Hilbert's Tenth</h1>
+                <p class="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Diophantine Solver</p>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="toggleTheory()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-md text-xs font-semibold transition-colors flex items-center gap-2 border border-slate-600">
+                <i class="ph-bold ph-book-open"></i> Concept
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+        
+        <!-- Sidebar -->
+        <aside class="w-full lg:w-80 simple-panel border-y-0 border-l-0 lg:border-r flex flex-col z-10 flex-shrink-0">
+            <div class="p-5 border-b border-slate-700">
+                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Equation Library</h2>
+                <p class="text-xs text-slate-500">Select a problem or define your own.</p>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-3 space-y-2" id="equation-list">
+                <!-- List items injected by JS -->
+            </div>
+        </aside>
+
+        <!-- Workbench -->
+        <section class="flex-1 flex flex-col bg-slate-900 relative overflow-hidden">
+            
+            <!-- Equation Display / Input Area - Reduced height to give space to log -->
+            <div class="relative z-10 p-6 flex flex-col items-center justify-center min-h-[250px] text-center border-b border-slate-800">
+                
+                <div id="display-container" class="mb-6 w-full max-w-2xl">
+                    <!-- Dynamic Content Here -->
+                </div>
+                
+                <!-- Controls -->
+                <div class="max-w-md w-full simple-panel p-6 rounded-lg shadow-lg">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Search Range</span>
+                        <span id="range-value" class="text-xs font-mono text-indigo-300 font-bold bg-indigo-900/50 px-2 py-1 rounded">±10</span>
+                    </div>
+                    
+                    <!-- Simplified Slider (No fancy glow) -->
+                    <div class="mb-6">
+                        <input type="range" min="5" max="500" value="10" step="5" 
+                            class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                            oninput="updateRange(this.value)">
+                    </div>
+
+                    <button id="search-btn" onclick="startSearch()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors shadow-sm flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span id="btn-text">Start Brute Force Search</span>
+                        <i id="btn-icon" class="ph-bold ph-magnifying-glass"></i>
+                    </button>
+                    
+                    <div id="variable-tags" class="mt-4 flex flex-wrap justify-center gap-2 min-h-[20px]">
+                        <!-- Variable badges go here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Console - Expanded -->
+            <div class="flex-1 bg-slate-950 flex flex-col overflow-hidden">
+                <div class="bg-slate-800 p-2 px-4 border-b border-slate-700 flex justify-between items-center">
+                    <span class="text-emerald-400 font-bold text-xs flex items-center gap-2 uppercase tracking-wider">
+                        <i class="ph-bold ph-terminal-window"></i>
+                        Search Log
+                    </span>
+                    <button onclick="clearLog()" class="text-[10px] text-slate-400 hover:text-white uppercase font-bold tracking-wider transition-colors">Clear Output</button>
+                </div>
+                <div id="console-output" class="flex-1 overflow-y-auto p-4 space-y-1 font-mono text-xs md:text-sm text-slate-300">
+                    <div class="text-slate-600 italic opacity-50">Initializing system... Ready.</div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Theory Modal -->
+        <div id="theory-modal" class="hidden absolute inset-0 bg-slate-900/95 z-50 overflow-y-auto p-4 md:p-12">
+            <div class="max-w-3xl mx-auto simple-panel bg-slate-800 rounded-xl shadow-2xl overflow-hidden">
+                <div class="p-8 border-b border-slate-700 flex justify-between items-start">
+                    <div>
+                        <h2 class="text-2xl font-bold text-white mb-2">Hilbert's 10th Problem</h2>
+                        <p class="text-indigo-400 font-medium text-sm">The bridge between Algebra and Algorithms</p>
+                    </div>
+                    <button onclick="toggleTheory()" class="text-slate-400 hover:text-white bg-slate-700 hover:bg-slate-600 p-2 rounded-full transition-colors">
+                        <i class="ph-bold ph-x"></i>
+                    </button>
+                </div>
+                <div class="p-8 space-y-6 text-slate-300 leading-relaxed text-sm md:text-base">
+                    <section>
+                        <h3 class="text-lg font-bold text-white mb-2">The Question (1900)</h3>
+                        <p>
+                            David Hilbert asked: <em>"Is there a universal algorithm that can determine whether any given polynomial equation with integer coefficients has integer solutions?"</em>
+                        </p>
+                    </section>
+
+                    <section class="bg-indigo-900/20 p-6 rounded-xl border border-indigo-500/20">
+                        <h3 class="text-lg font-bold text-indigo-300 mb-2 flex items-center gap-2">
+                            <i class="ph-duotone ph-cpu text-indigo-400"></i> The Turing Machine Connection
+                        </h3>
+                        <p class="mb-3">
+                            In 1970, Yuri Matiyasevich proved that <strong>every Turing Machine can be encoded into a Diophantine Equation.</strong>
+                        </p>
+                        <ul class="list-disc pl-5 space-y-2 text-indigo-200/80">
+                            <li>Finding an integer solution = The Turing Machine <strong>Halting</strong>.</li>
+                            <li>If we could solve Hilbert's 10th, we could solve the Halting Problem.</li>
+                            <li>Since the Halting Problem is undecidable, finding integer solutions is also <strong>undecidable</strong>.</li>
+                        </ul>
+                    </section>
+
+                    <div class="pt-4">
+                        <button onclick="toggleTheory()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors shadow-lg">
+                            Back to the Hunt
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- Data & State ---
+        
+        // Built-in equations
+        const presetEquations = [
+            {
+                id: 'linear',
+                display: "2x - y - 10 = 0",
+                raw: "2x - y - 10",
+                vars: ['x', 'y'],
+                desc: "Linear Diophantine",
+                difficulty: "Easy"
+            },
+            {
+                id: 'circle',
+                display: "x² + y² - 25 = 0",
+                raw: "x^2 + y^2 - 25",
+                vars: ['x', 'y'],
+                desc: "Circle Equation",
+                difficulty: "Medium"
+            },
+            {
+                id: 'pell',
+                display: "x² - 2y² - 1 = 0",
+                raw: "x^2 - 2*y^2 - 1",
+                vars: ['x', 'y'],
+                desc: "Pell's Equation",
+                difficulty: "Hard"
+            },
+            {
+                id: 'impossible',
+                display: "3x² + 4y² - 5 = 0",
+                raw: "3x^2 + 4y^2 - 5",
+                vars: ['x', 'y'],
+                desc: "No Integer Solutions",
+                difficulty: "Imp."
+            }
+        ];
+
+        // Current active equation object
+        // Format: { id, check: fn(scope)=>bool, vars: [], display: string }
+        let activeEquation = null;
+        let isCustomMode = false;
+        
+        let searchRange = 10;
+        let isSearching = false;
+        let searchInterval = null;
+
+        // --- DOM Elements ---
+        const elEqList = document.getElementById('equation-list');
+        const elDisplayContainer = document.getElementById('display-container');
+        const elRangeVal = document.getElementById('range-value');
+        const elBtn = document.getElementById('search-btn');
+        const elBtnText = document.getElementById('btn-text');
+        const elBtnIcon = document.getElementById('btn-icon');
+        const elConsole = document.getElementById('console-output');
+        const elTheory = document.getElementById('theory-modal');
+        const elVarTags = document.getElementById('variable-tags');
+
+        // --- Init ---
+        function init() {
+            renderSidebar();
+            loadPreset(0);
+        }
+
+        // --- Sidebar Logic ---
+        function renderSidebar() {
+            elEqList.innerHTML = '';
+            
+            // Render Presets
+            presetEquations.forEach((eq, idx) => {
+                const btn = document.createElement('div');
+                const isActive = !isCustomMode && activeEquation && activeEquation.id === eq.id;
+                
+                btn.className = `p-3 rounded-lg mb-2 cursor-pointer transition-colors duration-200 group ${isActive ? 'card-active' : 'card-inactive'}`;
+                btn.onclick = () => loadPreset(idx);
+                
+                let badgeClass = "bg-slate-700 text-slate-400";
+                if(eq.difficulty === 'Easy') badgeClass = "bg-emerald-900/30 text-emerald-400 border border-emerald-500/30";
+                if(eq.difficulty === 'Medium') badgeClass = "bg-amber-900/30 text-amber-400 border border-amber-500/30";
+                if(eq.difficulty === 'Hard') badgeClass = "bg-rose-900/30 text-rose-400 border border-rose-500/30";
+                if(eq.difficulty === 'Imp.') badgeClass = "bg-slate-700/50 text-slate-400 border border-slate-600/50";
+
+                btn.innerHTML = `
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-serif font-bold text-base text-slate-200 group-hover:text-white transition-colors">${eq.display}</span>
+                        <span class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${badgeClass}">${eq.difficulty}</span>
+                    </div>
+                    <div class="text-xs text-slate-500 font-medium group-hover:text-slate-400">${eq.desc}</div>
+                `;
+                elEqList.appendChild(btn);
+            });
+
+            // Render Custom Button
+            const customBtn = document.createElement('div');
+            customBtn.className = `p-3 rounded-lg mb-2 cursor-pointer transition-colors duration-200 mt-4 border border-dashed border-indigo-500/30 hover:border-indigo-400 hover:bg-indigo-900/20 ${isCustomMode ? 'bg-indigo-900/20 border-indigo-500 border-solid' : ''}`;
+            customBtn.onclick = enableCustomMode;
+            customBtn.innerHTML = `
+                <div class="flex items-center gap-3 justify-center py-2">
+                    <i class="ph-bold ph-pencil-simple text-indigo-400"></i>
+                    <span class="text-sm font-bold text-indigo-300">Create Your Own</span>
+                </div>
+            `;
+            elEqList.appendChild(customBtn);
+        }
+
+        // --- Loading Logic ---
+
+        function loadPreset(idx) {
+            if (isSearching) stopSearch();
+            isCustomMode = false;
+            const eq = presetEquations[idx];
+            
+            // Compile check function
+            const node = math.parse(eq.raw);
+            const code = node.compile();
+            
+            activeEquation = {
+                id: eq.id,
+                vars: eq.vars,
+                display: eq.display,
+                check: (scope) => Math.abs(code.evaluate(scope)) < 1e-9 // check if equals 0
+            };
+
+            updateDisplay();
+            renderSidebar();
+            log(`Loaded: ${eq.desc}`, 'system');
+        }
+
+        function enableCustomMode() {
+            if (isSearching) stopSearch();
+            isCustomMode = true;
+            activeEquation = null; // Wait for input
+            
+            renderSidebar();
+            
+            // Render Input UI
+            elDisplayContainer.innerHTML = `
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Define Polynomial f(...) = 0</div>
+                <div class="relative max-w-lg mx-auto">
+                    <input type="text" id="custom-input" placeholder="e.g. x^2 + y^3 - z" 
+                        class="w-full bg-transparent text-center text-3xl md:text-5xl font-serif font-bold text-white placeholder-slate-600 outline-none border-b-2 border-slate-700 focus:border-indigo-500 transition-colors pb-2"
+                        autocomplete="off">
+                    <div class="mt-4 text-xs text-slate-500">
+                        Enter an expression. The solver will try to make it equal <strong>zero</strong>.<br>
+                        Variables are detected automatically.
+                    </div>
+                </div>
+            `;
+
+            // Attach listeners
+            const input = document.getElementById('custom-input');
+            input.focus();
+            input.addEventListener('input', (e) => parseCustomInput(e.target.value));
+        }
+
+        function updateDisplay() {
+            if (!activeEquation) return;
+            
+            elDisplayContainer.innerHTML = `
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Target Equation</div>
+                <div class="text-5xl md:text-7xl font-serif text-white tracking-wide font-bold transition-all break-words">
+                    ${activeEquation.display}
+                </div>
+            `;
+            updateVariableBadges(activeEquation.vars);
+        }
+
+        function updateVariableBadges(vars) {
+            elVarTags.innerHTML = '';
+            vars.forEach(v => {
+                const tag = document.createElement('span');
+                tag.className = "px-2 py-1 bg-slate-800 rounded text-[10px] font-mono text-indigo-300 border border-slate-700";
+                tag.innerText = v;
+                elVarTags.appendChild(tag);
+            });
+        }
+
+        // --- Custom Parser ---
+        
+        function parseCustomInput(str) {
+            if (!str.trim()) {
+                elVarTags.innerHTML = '';
+                elBtn.disabled = true;
+                return;
+            }
+
+            try {
+                const node = math.parse(str);
+                const code = node.compile();
+                
+                // Extract variables (filter out constants/functions)
+                const symbols = new Set();
+                node.traverse(n => {
+                    if (n.isSymbolNode && !math[n.name]) { // rough check to avoid constants like 'pi'
+                         symbols.add(n.name);
+                    }
+                });
+                const vars = Array.from(symbols).sort();
+
+                activeEquation = {
+                    id: 'custom',
+                    vars: vars,
+                    display: str, // Raw for now
+                    check: (scope) => {
+                        try { return Math.abs(code.evaluate(scope)) < 1e-9; }
+                        catch(e) { return false; }
+                    }
+                };
+                
+                updateVariableBadges(vars);
+                elBtn.disabled = false;
+                
+            } catch (e) {
+                // Parse error - invalid equation yet
+                elVarTags.innerHTML = `<span class="text-rose-500 text-xs italic">Invalid syntax...</span>`;
+                elBtn.disabled = true;
+            }
+        }
+
+        // --- Search Logic ---
+
+        function updateRange(val) {
+            searchRange = parseInt(val);
+            elRangeVal.innerText = `±${searchRange}`;
+        }
+
+        function startSearch() {
+            if (isSearching) {
+                stopSearch();
+                return;
+            }
+
+            if (!activeEquation || activeEquation.vars.length === 0) {
+                log("No valid equation or variables detected.", 'warning');
+                return;
+            }
+
+            isSearching = true;
+            updateBtnState();
+            log(`Searching for roots in [-${searchRange}, ${searchRange}]...`, 'system');
+            
+            const vars = activeEquation.vars;
+            const iterator = createGenericIterator(vars, searchRange);
+            const batchSize = 2000; 
+            const startTime = Date.now();
+
+            searchInterval = setInterval(() => {
+                let foundInBatch = false;
+                
+                for(let i=0; i<batchSize; i++) {
+                    const result = iterator.next();
+                    
+                    if(result.done) {
+                        stopSearch();
+                        const time = ((Date.now() - startTime)/1000).toFixed(2);
+                        log(`Search finished (${time}s). Range exhausted.`, 'system');
+                        return;
+                    }
+
+                    const scope = result.value; 
+                    
+                    if(activeEquation.check(scope)) {
+                        foundInBatch = true;
+                        const solStr = Object.entries(scope).map(([k,v]) => `${k}=<span class="text-white">${v}</span>`).join(', ');
+                        log(`SOLUTION: ${solStr}`, 'success');
+                    }
+                }
+            }, 5);
+        }
+
+        function stopSearch() {
+            isSearching = false;
+            clearInterval(searchInterval);
+            updateBtnState();
+        }
+
+        function updateBtnState() {
+            if(isSearching) {
+                elBtn.classList.replace('bg-indigo-600', 'bg-rose-600');
+                elBtn.classList.replace('hover:bg-indigo-500', 'hover:bg-rose-500');
+                elBtnText.innerText = "Stop Search";
+                elBtnIcon.className = "ph-bold ph-stop spinner";
+                elBtnIcon.classList.remove('spinner'); 
+            } else {
+                elBtn.classList.replace('bg-rose-600', 'bg-indigo-600');
+                elBtn.classList.replace('hover:bg-rose-500', 'hover:bg-indigo-500');
+                elBtnText.innerText = "Start Brute Force Search";
+                elBtnIcon.className = "ph-bold ph-magnifying-glass";
+            }
+        }
+
+        // Generic Iterator for N variables
+        function* createGenericIterator(vars, range) {
+            const min = -range;
+            const max = range;
+            const n = vars.length;
+            
+            // Helper to generate combinations recursively
+            function* recursiveLoop(depth, currentScope) {
+                if (depth === n) {
+                    yield currentScope;
+                    return;
+                }
+                
+                const varName = vars[depth];
+                
+                for (let i = min; i <= max; i++) {
+                    const newScope = { ...currentScope, [varName]: i };
+                    yield* recursiveLoop(depth + 1, newScope);
+                }
+            }
+
+            yield* recursiveLoop(0, {});
+        }
+
+        // --- Console ---
+
+        function log(msg, type = 'info') {
+            const line = document.createElement('div');
+            line.className = "border-l-2 pl-2 mb-1 animate-pulse";
+            line.style.animationIterationCount = "1";
+            
+            const timestamp = new Date().toLocaleTimeString().split(' ')[0];
+            
+            if(type === 'success') {
+                line.className += " border-emerald-500 text-emerald-400 font-bold bg-emerald-900/10 p-1";
+                line.innerHTML = `<span class="opacity-50 text-emerald-600">[${timestamp}]</span> ${msg}`;
+            } else if (type === 'system') {
+                line.className += " border-indigo-500 text-indigo-300";
+                line.innerHTML = `<span class="opacity-50 text-indigo-600">[${timestamp}]</span> ${msg}`;
+            } else if (type === 'warning') {
+                line.className += " border-amber-500 text-amber-400";
+                line.innerHTML = `<span class="opacity-50 text-amber-600">[${timestamp}]</span> ${msg}`;
+            } else {
+                line.className += " border-slate-700 text-slate-400";
+                line.innerHTML = `<span class="opacity-50 text-slate-700">[${timestamp}]</span> ${msg}`;
+            }
+
+            elConsole.appendChild(line);
+            elConsole.scrollTop = elConsole.scrollHeight;
+        }
+
+        function clearLog() {
+            elConsole.innerHTML = '<div class="text-slate-600 italic opacity-50">Log cleared.</div>';
+        }
+
+        function toggleTheory() {
+            elTheory.classList.toggle('hidden');
+        }
+
+        // Run
+        init();
+
+    </script>
+</body>
+</html>
